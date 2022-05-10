@@ -1,0 +1,41 @@
+Executando Cassandra:
+
+cd apache-cassandra-4.0.3/ && bin/cassandra
+
+Ele executa em BackGround.
+
+Para ver o log da execução, fazer:
+
+tail -f logs/system.log
+
+Para conectar no banco Cassandra, fazer:
+
+bin/cqlsh
+
+-------------------------------------------------
+
+Também é possível executar com o Docker, porque essa máquina já tem imagem para geração de container Docker do Cassandra.
+
+Comandos:
+
+docker images => mostra as images que já baixei nessa máquina
+
+docker ps -a => mostra os containers que já tenho prontos nessa máquina, em execução ou não, gerados a partir das imagens.
+
+docker ps => mostra se tem algum container em execução nesse momento.
+
+------------------------------------------------------
+
+DOCUMENTAÇÃO IMPORTANTE SOBRE DOCKER:
+
+Cassandra_com_Java_e_Python.pdf => Mostra como usar Java e Cassandra.
+https://hub.docker.com/_/cassandra => Documentação Cassandra Docker conteiner.
+                                      Essa documentação é melhor para mostrar como montar um cluster em máquinas isoladas, na cloud por exemplo.
+
+------------------------------------------------------
+
+DOCUMENTAÇÃO IMPORTANTE SOBRE CASSANDRA:
+
+https://cassandra.apache.org/doc/latest/   => Documentação oficial.
+
+https://developer.ibm.com/br/tutorials/ba-set-up-apache-cassandra-architecture/ => documentação sobre uso com docker. Mostra como executar cassandra localmente mostra código em java. Mostra como fazer um cluster em máquina local única.

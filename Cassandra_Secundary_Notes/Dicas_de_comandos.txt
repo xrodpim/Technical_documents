@@ -1,0 +1,116 @@
+Exemplo de alguns comandos para iniciar Docker containers do Cassandra:
+----------------------------------------------------------------------------
+
+docker run --name node6 -d -e CASSANDRA_BROADCAST_ADDRESS=192.168.10.6 -p 7000:7000 cassandra:3.11
+
+(Esse comando criar um nodo Cassandra chamado node6. É baseando na imagem cassandra versão 3.11.
+ Tal nodo aceitará requests enviadas ao IP 192.168.10.6. Então esse nodo poderá participar de cluster
+ com o uso de mais de uma máquina, ou seja, cluster de nodos em máquinas diferentes.)
+ 
+ 
+ 
+ docker run --name node9 -d -e CASSANDRA_BROADCAST_ADDRESS=192.168.10.14 -p 7000:7000 -e CASSANDRA_SEEDS=192.168.10.6 cassandra:3.11
+ 
+ (Esse comando cria outro nodo Cassndra em outra máquina com IP = 192.168.10.14. Esse nodo conecta-se com o nodo na máquina 192.168.10.6 Portanto os dois nodos foram automaticamente um cluster de 2 máquinas. Esses nodos comunicam-se com o protocolo Gossip. Se a comunicação não ocorrer corretamente, esse node9 cai. (Interrupção por timeout)
+ 
+ 
+Com a configuração acima, se um nodo recebe dados, os dados são replicados no outro nodo, por default. 
+ 
+ 
+A porta 9042 é a default para contatar um Docker container Cassandra. Portanto, podemos fazer um código cliente em java, que contatará por exemplo o nodo6, mas somente se ele for definido com -p 9042:9042. Entretanto, ao rodar o nodo6 e 9 definindo "-p 9042:9042" eles não conseguem se comunicar. 
+ 
+ 
+ 
+ docker run -it -p 9042:9042  -p 7000:7000 --name node32 -d -e CASSANDRA_BROADCAST_ADDRESS=192.168.10.6 cassandra:3.11
+ 
+ (comando acima define que o nodo Cassandra aceita participar de cluster com máquinas diferentes e também aceita comunicação , por exemplo vinda de um código java. Se o código java inserir dados no node32, por exemplo, esses dados são prontamente replicados em outos nodos do cluster, por defualt)
+ 
+ ======================================================================================================
+ Porta 9042 => porta para comunicar com o nodo Cassandra, por exemplo via código java.
+O número da porta TCP do nó que será usado pelos clientes para se conectar a este nó. Assegure-se de usar uma porta que não esteja bloqueada por firewalls. O padrão é a 9042.           
+ 
+ 
+ Porta 7000 => porta default para comunicação entre nodos, usando o protcolo gossip. Isso significa que só poderá haver um único nodo numa máquina, usando a porta 7000. Para que haja mais de um nodo numa mesma máquina, cada um terá que usar uma porta diferente, mapeando para a porta 7000. E todos os outros nós, em outras máquinas, devem ser configurados para usar o gossip não somente na porta 7000 , mas também nessas outras configuradas. Ou seja, havendo mais de 2 nós num cluster de máquinas, deve-se configurar os nós para trabalharem com mais portas além de somente a porta 7000.
+ 
+ 
+ Para essas configurações, pode-se editar o arquivo  cassandra.yaml com vi, dentro do container em execução, por exemplo.
+ 
+ 
+ =====================================================================================================
+ 
+ Resumo:
+ 
+ Exemplo para a máquina que conterá o nodo SEED:
+ 
+ docker run -it -p 9042:9042  -p 7000:7000 --name node36 -d -e CASSANDRA_BROADCAST_ADDRESS=192.168.10.6 cassandra:3.11
+ 
+ 
+ Exemplo para outra máquina qualquer do cluser:
+ 
+ docker run --name node49 -d -e CASSANDRA_BROADCAST_ADDRESS=192.168.10.14 -p 7000:7000 -p9042:9042 -e CASSANDRA_SEEDS=192.168.10.6  cassandra:3.11
+
+ Com esse 2 nodos acima, pode manipular qualquer um deles com java, por exemplo. E a manipulação será replicada em todos os nodos do cluster.
+ 
+ Exemplo de mais um nodo na mesma máquina onde se encontra a máquina com nodo SEED:
+ 
+ docker run --name node98 -d -e CASSANDRA_BROADCAST_ADDRESS=172.17.0.3 -e CASSANDRA_SEEDS=192.168.10.6  cassandra:3.11
+ 
+ Exemplo de ordem de execução:
+ 1 criar nodo SEED
+ 2 criar nodo em outra máquina
+ 3 criar outro nodo na mesma máquina do nodo SEED.
+ 
+ Exemplo de como fica o Datacenter criado:
+
+Datacenter: datacenter1
+=======================
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+--  Address        Load       Tokens       Owns (effective)  Host ID                               Rack
+UN  172.17.0.3     287.07 KiB  256          68.0%             0e39bf2c-a67a-4ac5-912b-586e2e70a248  rack1
+UN  192.168.10.14  70.88 KiB  256          66.5%             84547651-5429-4446-b87c-f3f36d653c44  rack1
+UN  192.168.10.6   141.77 KiB  256          65.5%             adffb4ae-59e8-4c8f-9536-cd609f856b37  rack1
+
+=====================================================================================================
+
+Para ver logs:
+
+docker exec <node name>  tail -f /data/log/system.log -n 100
+
+ou
+
+docker logs <node name>
+
+
+=====================================================================================================
+
+ Exemplo de todos os nodos na mesma máquina:
+ 
+ docker run --name node1 -d cassandra:3.11  Para nodo que será o SEED
+ docker run --name node2 -d -e CASSANDRA_SEEDS="$(docker inspect --format='{{.NetworkSettings.IPAddress }}' node1)" cassandra:3.11  Para qualquer outro nodo na mesma máquina.
+ 
+ 
+ ===================================================================================================
+ 
+ 
+ Erros ocorridos para investigar:
+
+No container cassandra:
+
+-MigrationCoordinator.java:507 - Can't send schema pull request: node /192.168.10.6 is down.
+-A node required to move the data consistently is down (/192.168.10.14). If you wish to move the data from a potentially inconsistent replica, restart the node with -Dcassandra.consistent.rangemovement=false
+-InetAddress /172.17.0.3 is now DOWN
+
+- A node with address /172.17.0.3 already exists, cancelling join. Use cassandra.replace_address if you want to replace this node.
+
+- CassandraDaemon.java:564 - Not starting RPC server as requested. Use JMX (StorageService->startRPCServer()) or nodetool (enablethrift) to start it
+
+=============================================================================================================
+
+Dicas com firewall   = https://www.digitalocean.com/community/tutorials/how-to-run-a-multi-node-cluster-database-with-cassandra-on-ubuntu-14-04
+
+
+
+
+
+
